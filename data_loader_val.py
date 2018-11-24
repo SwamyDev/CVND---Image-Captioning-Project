@@ -27,7 +27,7 @@ def get_loader_val(transform,
 
     return data.DataLoader(dataset=dataset,
                            batch_size=1,
-                           shuffle=True,
+                           shuffle=False,
                            num_workers=num_workers)
 
 class CoCoValDataset(data.Dataset):
@@ -35,26 +35,19 @@ class CoCoValDataset(data.Dataset):
         self.transform = transform
         self.vocab = Vocabulary(None, vocab_file, None, None, None, annotations_file, True)
         self.coco = COCO(annotations_file)
-        self.ids = list(self.coco.anns.keys())
+        self.ids = list(self.coco.getImgIds())
         self.img_folder = img_folder
-        test_info = json.loads(open(annotations_file).read())
-        self.paths = [item['file_name'] for item in test_info['images']]
+        self.paths = [item['file_name'] for item in self.coco.loadImgs(self.ids)]
         
     def __getitem__(self, index):
         path = self.paths[index]
-        ann_id = self.ids[index]
+        image_id = self.ids[index]
         
         # Convert image to tensor and pre-process using transform
         PIL_image = Image.open(os.path.join(self.img_folder, path)).convert('RGB')
         image = self.transform(PIL_image)
 
-        return image, self.coco.anns[ann_id]['image_id']
-
-    def get_train_indices(self):
-        sel_length = np.random.choice(self.caption_lengths)
-        all_indices = np.where([self.caption_lengths[i] == sel_length for i in np.arange(len(self.caption_lengths))])[0]
-        indices = list(np.random.choice(all_indices, size=self.batch_size))
-        return indices
+        return image, image_id
 
     def __len__(self):
-        return len(self.paths)
+        return len(self.ids)
